@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<!--
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║              FIREBASE SETUP — READ BEFORE OPENING               ║
+  ╠══════════════════════════════════════════════════════════════════╣
+  ║  1. Go to https://console.firebase.google.com                   ║
+  ║  2. Click "Add project" → name it (e.g. "study-tracker")        ║
+  ║     → disable Google Analytics → Create project                 ║
+  ║  3. Click the </> (Web) icon to add a web app                   ║
+  ║     → give it a nickname → click "Register app"                 ║
+  ║     → COPY the firebaseConfig object shown                      ║
+  ║  4. In left sidebar → Build → Firestore Database                ║
+  ║     → "Create database" → Start in TEST MODE → choose region    ║
+  ║  5. Open this file in a text editor, paste your config below    ║
+  ║     replacing the placeholder values, then save & open in       ║
+  ║     browser. That's it — data now lives in the cloud!           ║
+  ╚══════════════════════════════════════════════════════════════════╝
+-->
+
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a25;
+    --border: #2a2a3a;
+    --accent: #e8ff47;
+    --accent2: #ff4757;
+    --accent3: #47c4ff;
+    --text: #e8e8f0;
+    --text-dim: #6b6b80;
+    --warrior: #e8ff47;
+    --bitch: #ff4757;
+    --green: #39ff85;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.4;
+  }
+
+  /* ── Setup Screen ────────────────────────────────────────── */
+  #setup-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .setup-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 40px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .setup-box h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+  }
+
+  .setup-box h2 span { color: var(--accent); }
+
+  .setup-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+
+  .setup-steps {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+  }
+
+  .setup-steps ol {
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .setup-steps li {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .setup-steps li a {
+    color: var(--accent3);
+    text-decoration: none;
+  }
+
+  .setup-steps li strong { color: var(--text); }
+
+  .setup-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .setup-field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .setup-field-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .setup-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  .setup-input:focus { border-color: var(--accent3); }
+  .setup-input.error { border-color: var(--bitch); }
+
+  .setup-err {
+    font-size: 11px;
+    color: var(--bitch);
+    margin-top: -6px;
+    display: none;
+  }
+
+  .btn-connect {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    color: #000;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 3px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-connect:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-connect:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+  .setup-note {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 14px;
+    letter-spacing: 1px;
+    line-height: 1.6;
+  }
+
+  /* ── Sync indicator ─────────────────────────────────────── */
+  .sync-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-top: 10px;
+  }
+
+  .sync-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+
+  .sync-dot.syncing {
+    background: var(--accent);
+    animation: pulse-dot 1s ease-in-out infinite;
+  }
+
+  .sync-dot.synced { background: var(--green); }
+  .sync-dot.error  { background: var(--bitch); }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── Main App (same as before) ──────────────────────────── */
+  .app {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+
+  .header { margin-bottom: 36px; }
+
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .title-block h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(42px, 8vw, 72px);
+    letter-spacing: 4px;
+    line-height: 0.9;
+    color: var(--text);
+  }
+
+  .title-block .month-label {
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  .status-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 24px;
+    margin-top: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .status-banner::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--warrior-color, var(--warrior));
+    transition: background 0.4s;
+  }
+
+  .status-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    letter-spacing: 3px;
+    transition: color 0.4s;
+    min-width: 120px;
+  }
+
+  .status-meta { display: flex; flex-direction: column; gap: 2px; }
+  .status-meta .status-desc { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; }
+  .status-meta .today-hours { font-size: 13px; color: var(--text); font-weight: 500; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(232,255,71,0.03) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .stat-card .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 38px; letter-spacing: 2px; color: var(--accent); line-height: 1; }
+  .stat-card .stat-val.hours { color: var(--accent3); }
+  .stat-card .stat-val.days-done { color: var(--green); }
+  .stat-card .stat-key { font-size: 10px; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; margin-top: 6px; }
+
+  .actions-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .btn:hover { border-color: var(--text-dim); color: var(--text); transform: translateY(-1px); }
+  .btn.danger { border-color: #ff4757; color: #ff4757; }
+  .btn.danger:hover { background: rgba(255,71,87,0.1); }
+  .btn.warn { border-color: #ffa000; color: #ffa000; }
+  .btn.warn:hover { background: rgba(255,160,0,0.1); }
+  .btn.ghost { border-color: transparent; font-size: 10px; }
+  .btn.ghost:hover { border-color: var(--border); }
+
+  .month-nav { display: flex; align-items: center; gap: 14px; margin-top: 28px; margin-bottom: 20px; }
+  .month-nav-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px; flex: 1; }
+
+  .nav-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .nav-btn:disabled:hover { border-color: var(--border); color: var(--text-dim); }
+
+  .calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .day-header { font-size: 10px; letter-spacing: 2px; color: var(--text-dim); text-align: center; padding: 8px 4px; text-transform: uppercase; }
+
+  .day-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 8px 8px;
+    min-height: 82px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .day-cell:hover { border-color: rgba(232,255,71,0.3); transform: translateY(-1px); }
+  .day-cell.empty { background: transparent; border-color: transparent; cursor: default; pointer-events: none; }
+  .day-cell.future { opacity: 0.4; cursor: default; }
+  .day-cell.future:hover { transform: none; border-color: var(--border); }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: rgba(232,255,71,0.5); }
+    50% { border-color: rgba(232,255,71,0.9); }
+  }
+
+  .day-cell.today { background: var(--surface2); animation: pulse-border 2.5s ease-in-out infinite; }
+
+  .day-cell.done { border-color: var(--green); background: rgba(57,255,133,0.06); }
+  .day-cell.done::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(57,255,133,0.08) 0%, transparent 60%); pointer-events: none; }
+
+  .day-cell.bitch-day { border-color: var(--bitch); background: rgba(255,71,87,0.06); }
+  .day-cell.bitch-day::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,71,87,0.08) 0%, transparent 60%); pointer-events: none; }
+
+  .day-num { font-size: 13px; font-weight: 700; color: var(--text-dim); line-height: 1; }
+  .day-cell.today .day-num { color: var(--accent); }
+  .day-cell.done .day-num { color: var(--green); }
+  .day-cell.bitch-day .day-num { color: var(--bitch); }
+
+  .day-check { width: 20px; height: 20px; border: 1.5px solid var(--border); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.2s; flex-shrink: 0; }
+  .day-cell.done .day-check { background: var(--green); border-color: var(--green); color: #000; }
+  .day-cell.bitch-day .day-check { background: var(--bitch); border-color: var(--bitch); color: #fff; }
+
+  .day-top { display: flex; align-items: center; justify-content: space-between; }
+
+  .day-hours-display { font-size: 18px; font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; color: var(--text-dim); line-height: 1; }
+  .day-cell.done .day-hours-display { color: var(--green); }
+  .day-cell.bitch-day .day-hours-display { color: var(--bitch); }
+  .day-cell.today .day-hours-display { color: var(--accent); }
+
+  .day-hours-label { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+  .today-tag { position: absolute; top: 4px; right: 6px; font-size: 7px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; opacity: 0.7; }
+  .note-dot { position: absolute; bottom: 7px; right: 7px; width: 6px; height: 6px; background: var(--accent3); border-radius: 50%; opacity: 0.7; }
+
+  .prev-months-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+  .month-pill { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 10px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+  .month-pill .pill-hours { color: var(--accent3); font-weight: 700; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    width: 100%; max-width: 400px;
+    transform: translateY(20px);
+    transition: transform 0.2s;
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 3px; margin-bottom: 24px; }
+  .modal-title span { color: var(--accent); }
+
+  .form-group { margin-bottom: 20px; }
+  .form-label { font-size: 10px; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 10px; display: block; }
+
+  .hours-input-wrap { display: flex; align-items: center; gap: 10px; }
+
+  .hours-input-wrap input[type="number"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px; font-weight: 700;
+    padding: 12px 16px;
+    border-radius: 10px;
+    width: 130px;
+    outline: none;
+    transition: border-color 0.2s;
+    -moz-appearance: textfield;
+  }
+
+  .hours-input-wrap input::-webkit-outer-spin-button,
+  .hours-input-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .hours-input-wrap input:focus { border-color: var(--accent); }
+
+  .stepper-btns { display: flex; flex-direction: column; gap: 6px; }
+
+  .step-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .step-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .toggle-group { display: flex; gap: 10px; }
+
+  .toggle-opt {
+    flex: 1; padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 12px; letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  .notes-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    resize: vertical;
+    min-height: 70px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .notes-input:focus { border-color: var(--accent3); }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+
+  .btn-save {
+    flex: 1;
+    background: var(--accent); border: none; color: #000;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; letter-spacing: 2px; font-weight: 700;
+    text-transform: uppercase;
+    padding: 14px; border-radius: 10px;
+    cursor: pointer; transition: all 0.2s;
+  }
+
+  .btn-save:hover { opacity: 0.85; transform: translateY(-1px); }
+
+  .btn-cancel {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 14px 20px; border-radius: 10px;
+    cursor: pointer; transition: all 0.2s;
+  }
+
+  .btn-cancel:hover { border-color: var(--text-dim); color: var(--text); }
+
+  .confirm-dialog {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    width: 100%; max-width: 340px;
+    transform: translateY(20px);
+    transition: transform 0.2s;
+  }
+
+  .modal-overlay.open .confirm-dialog { transform: translateY(0); }
+  .confirm-dialog h3 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; margin-bottom: 10px; }
+  .confirm-dialog p { font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-bottom: 22px; }
+
+  .confirm-btns { display: flex; gap: 10px; }
+
+  .confirm-btns .btn-yes {
+    flex: 1; background: var(--bitch); border: none; color: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    padding: 12px; border-radius: 8px;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+
+  .confirm-btns .btn-yes:hover { opacity: 0.85; }
+
+  .confirm-btns .btn-no {
+    flex: 1; background: transparent;
+    border: 1px solid var(--border); color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    padding: 12px; border-radius: 8px;
+    cursor: pointer; transition: all 0.2s;
+  }
+
+  .confirm-btns .btn-no:hover { border-color: var(--text-dim); color: var(--text); }
+
+  .hours-suffix { font-size: 14px; color: var(--text-dim); margin-top: 4px; }
+
+  @keyframes glow {
+    0%, 100% { text-shadow: 0 0 20px rgba(232,255,71,0.4); }
+    50% { text-shadow: 0 0 40px rgba(232,255,71,0.8), 0 0 80px rgba(232,255,71,0.3); }
+  }
+
+  .warrior-glow { animation: glow 2s ease-in-out infinite; }
+
+  @media (max-width: 580px) {
+    .calendar { gap: 4px; }
+    .day-cell { min-height: 62px; padding: 8px 5px 6px; }
+    .day-hours-display { font-size: 15px; }
+    .day-num { font-size: 11px; }
+    .day-check { width: 16px; height: 16px; font-size: 9px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Loading skeleton */
+  .loading-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 400;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+    transition: opacity 0.4s;
+  }
+
+  .loading-screen.hidden { opacity: 0; pointer-events: none; }
+
+  .loader-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px; letter-spacing: 4px;
+    color: var(--text-dim);
+  }
+
+  .loader-bar {
+    width: 200px; height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .loader-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: load-anim 1.2s ease-in-out infinite;
+  }
+
+  @keyframes load-anim {
+    0% { width: 0%; margin-left: 0; }
+    50% { width: 60%; margin-left: 20%; }
+    100% { width: 0%; margin-left: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div class="loading-screen" id="loading-screen">
+  <div class="loader-title">CONNECTING</div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<!-- Setup Screen -->
+<div id="setup-screen" style="display:none;">
+  <div class="setup-box">
+    <h2>CONNECT <span>FIREBASE</span></h2>
+    <div class="setup-sub">One-time setup · Takes 5 minutes</div>
+
+    <div class="setup-steps">
+      <ol>
+        <li>Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → <strong>Add project</strong> (disable Analytics) → Create</li>
+        <li>Click <strong>&lt;/&gt;</strong> (Web icon) → Register app → copy the <strong>firebaseConfig</strong> values</li>
+        <li>In left sidebar → <strong>Build → Firestore Database</strong> → Create database → <strong>Start in Test Mode</strong> → pick any region</li>
+        <li>Paste your config values below and click Connect</li>
+      </ol>
+    </div>
+
+    <div class="setup-fields">
+      <div class="setup-field-row">
+        <div class="setup-field-label">API Key</div>
+        <input class="setup-input" id="cfg-apiKey" placeholder="AIzaSy...">
+      </div>
+      <div class="setup-field-row">
+        <div class="setup-field-label">Auth Domain</div>
+        <input class="setup-input" id="cfg-authDomain" placeholder="your-project.firebaseapp.com">
+      </div>
+      <div class="setup-field-row">
+        <div class="setup-field-label">Project ID</div>
+        <input class="setup-input" id="cfg-projectId" placeholder="your-project-id">
+      </div>
+      <div class="setup-field-row">
+        <div class="setup-field-label">App ID</div>
+        <input class="setup-input" id="cfg-appId" placeholder="1:123456:web:abc123">
+      </div>
+    </div>
+
+    <div class="setup-err" id="setup-err">⚠ Check your values and make sure Firestore is enabled in test mode.</div>
+
+    <button class="btn-connect" id="btn-connect" onclick="connectFirebase()">Connect & Start Tracking</button>
+    <div class="setup-note">Your config is saved in localStorage so you only enter it once.<br>Data syncs to your Firebase project in real-time.</div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div class="app" id="main-app" style="display:none;">
+  <div class="header">
+    <div class="header-top">
+      <div class="title-block">
+        <h1>STUDY<br>TRACKER</h1>
+        <div class="month-label" id="month-label">Loading...</div>
+      </div>
+    </div>
+
+    <div class="status-banner" id="status-banner">
+      <div class="status-label" id="status-label">—</div>
+      <div class="status-meta">
+        <div class="status-desc" id="status-desc">Today's status</div>
+        <div class="today-hours" id="today-hours-display">0h logged today</div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-val hours" id="total-hours-val">0h</div>
+        <div class="stat-key">Total Hours This Month</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val days-done" id="days-done-val">0</div>
+        <div class="stat-key">Days Completed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="days-elapsed-val">0</div>
+        <div class="stat-key">Days Elapsed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="avg-hours-val">0h</div>
+        <div class="stat-key">Avg Hours / Day</div>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn warn" onclick="confirmReset('day')">⟳ Reset Today</button>
+      <button class="btn danger" onclick="confirmReset('month')">✕ Reset Month</button>
+      <div class="sync-bar" style="margin-left:auto;">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-label">—</span>
+      </div>
+      <button class="btn ghost" onclick="disconnectFirebase()" title="Change Firebase config">⚙ Disconnect</button>
+    </div>
+
+    <div class="prev-months-bar" id="prev-months-bar"></div>
+  </div>
+
+  <div class="month-nav">
+    <button class="nav-btn" id="prev-nav" onclick="navigateMonth(-1)">‹</button>
+    <div class="month-nav-title" id="nav-title">—</div>
+    <button class="nav-btn" id="next-nav" onclick="navigateMonth(1)">›</button>
+  </div>
+
+  <div class="calendar" id="calendar-grid"></div>
+</div>
+
+<!-- Day Modal -->
+<div class="modal-overlay" id="day-modal">
+  <div class="modal">
+    <div class="modal-title">DAY <span id="modal-day-num">—</span></div>
+    <div class="form-group">
+      <label class="form-label">Hours Studied</label>
+      <div class="hours-input-wrap">
+        <input type="number" id="hours-input" min="0" max="24" step="0.5" value="0">
+        <div class="hours-suffix">hrs</div>
+        <div class="stepper-btns">
+          <button class="step-btn" onclick="stepHours(0.5)">+</button>
+          <button class="step-btn" onclick="stepHours(-0.5)">−</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Day Status</label>
+      <div class="toggle-group">
+        <div class="toggle-opt" id="toggle-done" onclick="setToggle(true)">✓ Done</div>
+        <div class="toggle-opt" id="toggle-not" onclick="setToggle(false)">✗ Not Done</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes (optional)</label>
+      <textarea class="notes-input" id="notes-input" placeholder="What did you study today..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-save" onclick="saveDay()">Save</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="confirm-dialog">
+    <h3 id="confirm-title">Confirm</h3>
+    <p id="confirm-msg">Are you sure?</p>
+    <div class="confirm-btns">
+      <button class="btn-yes" id="confirm-yes">Yes, Reset</button>
+      <button class="btn-no" onclick="closeConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, onSnapshot, deleteField, updateDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // ── Config storage ───────────────────────────────────────────────────────
+  const CFG_KEY = 'study_tracker_firebase_cfg';
+
+  function loadCfg() {
+    try { return JSON.parse(localStorage.getItem(CFG_KEY)); } catch { return null; }
+  }
+
+  function saveCfg(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
+
+  // ── State ────────────────────────────────────────────────────────────────
+  let db = null;
+  let unsubscribe = null;
+  let data = { months: {} };
+  const today = new Date();
+  let viewYear = today.getFullYear();
+  let viewMonth = today.getMonth();
+  let editingDay = null;
+  let isDoneToggle = true;
+
+  // Expose globals for inline handlers
+  window.connectFirebase = connectFirebase;
+  window.disconnectFirebase = disconnectFirebase;
+  window.navigateMonth = navigateMonth;
+  window.openDayModal = openDayModal;
+  window.closeModal = closeModal;
+  window.setToggle = setToggle;
+  window.stepHours = stepHours;
+  window.saveDay = saveDay;
+  window.confirmReset = confirmReset;
+  window.closeConfirm = closeConfirm;
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  const savedCfg = loadCfg();
+  if (savedCfg) {
+    initApp(savedCfg);
+  } else {
+    document.getElementById('loading-screen').classList.add('hidden');
+    setTimeout(() => {
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('setup-screen').style.display = 'flex';
+    }, 400);
+  }
+
+  // ── Connect from setup form ──────────────────────────────────────────────
+  async function connectFirebase() {
+    const cfg = {
+      apiKey:     document.getElementById('cfg-apiKey').value.trim(),
+      authDomain: document.getElementById('cfg-authDomain').value.trim(),
+      projectId:  document.getElementById('cfg-projectId').value.trim(),
+      appId:      document.getElementById('cfg-appId').value.trim(),
+    };
+
+    if (!cfg.apiKey || !cfg.projectId || !cfg.appId) {
+      document.getElementById('setup-err').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('btn-connect').disabled = true;
+    document.getElementById('btn-connect').textContent = 'Connecting...';
+    document.getElementById('setup-err').style.display = 'none';
+
+    try {
+      await initApp(cfg);
+      saveCfg(cfg);
+    } catch (e) {
+      document.getElementById('setup-err').style.display = 'block';
+      document.getElementById('btn-connect').disabled = false;
+      document.getElementById('btn-connect').textContent = 'Connect & Start Tracking';
+    }
+  }
+
+  async function initApp(cfg) {
+    const app = initializeApp(cfg);
+    db = getFirestore(app);
+
+    // Test connection
+    const ref = doc(db, 'tracker', 'data');
+    await getDoc(ref); // throws if config is wrong
+
+    // Hide setup/loading, show app
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('setup-screen').style.display = 'none';
+    setTimeout(() => {
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('main-app').style.display = 'block';
+    }, 400);
+
+    // Real-time listener
+    setSyncStatus('syncing', 'Connecting...');
+    unsubscribe = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        data = snap.data();
+        if (!data.months) data.months = {};
+      } else {
+        data = { months: {} };
+      }
+      setSyncStatus('synced', 'Synced');
+      render();
+    }, (err) => {
+      setSyncStatus('error', 'Sync error');
+      console.error(err);
+    });
+  }
+
+  function disconnectFirebase() {
+    if (unsubscribe) unsubscribe();
+    localStorage.removeItem(CFG_KEY);
+    location.reload();
+  }
+
+  // ── Sync UI ──────────────────────────────────────────────────────────────
+  function setSyncStatus(state, label) {
+    const dot = document.getElementById('sync-dot');
+    const lbl = document.getElementById('sync-label');
+    dot.className = 'sync-dot ' + state;
+    lbl.textContent = label;
+  }
+
+  // ── Firestore save ───────────────────────────────────────────────────────
+  async function persist() {
+    if (!db) return;
+    setSyncStatus('syncing', 'Saving...');
+    try {
+      await setDoc(doc(db, 'tracker', 'data'), data);
+      setSyncStatus('synced', 'Saved');
+    } catch (e) {
+      setSyncStatus('error', 'Save failed');
+      console.error(e);
+    }
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function monthKey(y, m) { return `${y}-${String(m+1).padStart(2,'0')}`; }
+
+  function getMonthData(y, m) {
+    const k = monthKey(y, m);
+    if (!data.months[k]) data.months[k] = { days: {} };
+    return data.months[k];
+  }
+
+  function getTodayData() {
+    const md = getMonthData(today.getFullYear(), today.getMonth());
+    return md.days[today.getDate()] || { done: false, hours: 0, notes: '' };
+  }
+
+  function monthName(y, m) { return new Date(y, m, 1).toLocaleString('default', { month: 'long', year: 'numeric' }); }
+  function shortMonthName(y, m) { return new Date(y, m, 1).toLocaleString('default', { month: 'short', year: '2-digit' }); }
+  function daysInMonth(y, m) { return new Date(y, m+1, 0).getDate(); }
+
+  function firstDayOfMonth(y, m) {
+    let d = new Date(y, m, 1).getDay();
+    return d === 0 ? 6 : d - 1;
+  }
+
+  function isFuture(y, m, d) {
+    return new Date(y, m, d) > new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  }
+
+  function isToday(y, m, d) {
+    return y === today.getFullYear() && m === today.getMonth() && d === today.getDate();
+  }
+
+  function fmtHours(h) { return h ? h + 'h' : '0h'; }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  function render() {
+    renderHeader();
+    renderCalendar();
+    renderPrevMonths();
+  }
+
+  function renderHeader() {
+    document.getElementById('month-label').textContent =
+      (viewYear === today.getFullYear() && viewMonth === today.getMonth())
+        ? 'Current Month' : monthName(viewYear, viewMonth);
+
+    const todayD = getTodayData();
+    const label = document.getElementById('status-label');
+    const desc  = document.getElementById('status-desc');
+    const thEl  = document.getElementById('today-hours-display');
+
+    if (todayD.done && todayD.hours >= 4) {
+      label.textContent = 'WARRIOR';
+      label.className = 'status-label warrior-glow';
+      label.style.color = 'var(--warrior)';
+      desc.textContent = 'Today completed — keep grinding';
+    } else if (todayD.done && todayD.hours < 4) {
+      label.textContent = 'BITCH';
+      label.className = 'status-label';
+      label.style.color = 'var(--bitch)';
+      desc.textContent = 'Done, but less than 4h — step it up';
+    } else if (!todayD.done && todayD.hours > 0) {
+      label.textContent = 'BITCH';
+      label.className = 'status-label';
+      label.style.color = 'var(--bitch)';
+      desc.textContent = 'Hours logged but not marked done';
+    } else {
+      label.textContent = 'BITCH';
+      label.className = 'status-label';
+      label.style.color = 'var(--bitch)';
+      desc.textContent = 'Day not completed yet — get to work';
+    }
+
+    thEl.textContent = fmtHours(todayD.hours) + ' logged today';
+
+    const curMD = getMonthData(today.getFullYear(), today.getMonth());
+    let totalHours = 0, daysDone = 0;
+    Object.entries(curMD.days || {}).forEach(([, v]) => {
+      totalHours += (v.hours || 0);
+      if (v.done) daysDone++;
+    });
+
+    const daysElapsed = today.getDate();
+    const avg = daysElapsed > 0 ? (totalHours / daysElapsed).toFixed(1) : 0;
+
+    document.getElementById('total-hours-val').textContent = fmtHours(totalHours);
+    document.getElementById('days-done-val').textContent = daysDone;
+    document.getElementById('days-elapsed-val').textContent = daysElapsed;
+    document.getElementById('avg-hours-val').textContent = avg + 'h';
+  }
+
+  function renderCalendar() {
+    const grid = document.getElementById('calendar-grid');
+    grid.innerHTML = '';
+
+    const vy = viewYear, vm = viewMonth;
+    document.getElementById('nav-title').textContent = monthName(vy, vm).toUpperCase();
+
+    const nowKey = monthKey(today.getFullYear(), today.getMonth());
+    document.getElementById('next-nav').disabled = monthKey(vy, vm) >= nowKey;
+
+    ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
+      const h = document.createElement('div');
+      h.className = 'day-header';
+      h.textContent = d;
+      grid.appendChild(h);
+    });
+
+    const firstDay = firstDayOfMonth(vy, vm);
+    const days = daysInMonth(vy, vm);
+    const md = getMonthData(vy, vm);
+
+    for (let i = 0; i < firstDay; i++) {
+      const e = document.createElement('div');
+      e.className = 'day-cell empty';
+      grid.appendChild(e);
+    }
+
+    for (let d = 1; d <= days; d++) {
+      const dayData = (md.days && md.days[d]) || { done: false, hours: 0, notes: '' };
+      const cell = document.createElement('div');
+      const future = isFuture(vy, vm, d);
+      const todayFlag = isToday(vy, vm, d);
+
+      let cls = new Set(['day-cell']);
+      if (future) cls.add('future');
+      else if (todayFlag) cls.add('today');
+      if (!future && dayData.done && dayData.hours >= 4) cls.add('done');
+      if (!future && !todayFlag && (!dayData.done || (dayData.done && dayData.hours < 4))) cls.add('bitch-day');
+
+      cell.className = [...cls].join(' ');
+
+      const top = document.createElement('div');
+      top.className = 'day-top';
+
+      const num = document.createElement('div');
+      num.className = 'day-num';
+      num.textContent = d;
+
+      const check = document.createElement('div');
+      check.className = 'day-check';
+      if (dayData.done) check.textContent = '✓';
+
+      top.appendChild(num);
+      top.appendChild(check);
+      cell.appendChild(top);
+
+      if (todayFlag) {
+        const tag = document.createElement('div');
+        tag.className = 'today-tag';
+        tag.textContent = 'TODAY';
+        cell.appendChild(tag);
+      }
+
+      const hoursD = document.createElement('div');
+      hoursD.className = 'day-hours-display';
+      hoursD.textContent = dayData.hours > 0 ? fmtHours(dayData.hours) : '—';
+      cell.appendChild(hoursD);
+
+      const hoursLabel = document.createElement('div');
+      hoursLabel.className = 'day-hours-label';
+      hoursLabel.textContent = dayData.hours > 0 ? 'hours' : '';
+      cell.appendChild(hoursLabel);
+
+      if (dayData.notes) {
+        const dot = document.createElement('div');
+        dot.className = 'note-dot';
+        cell.appendChild(dot);
+      }
+
+      if (!future) cell.onclick = () => openDayModal(d, dayData);
+      grid.appendChild(cell);
+    }
+  }
+
+  function renderPrevMonths() {
+    const bar = document.getElementById('prev-months-bar');
+    bar.innerHTML = '';
+    const curKey = monthKey(today.getFullYear(), today.getMonth());
+
+    const pastMonths = Object.keys(data.months || {})
+      .filter(k => k < curKey).sort().reverse().slice(0, 6);
+
+    if (!pastMonths.length) return;
+
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:10px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;width:100%;margin-bottom:4px;';
+    lbl.textContent = 'Previous Months';
+    bar.appendChild(lbl);
+
+    pastMonths.forEach(k => {
+      const md = data.months[k];
+      let totalH = 0;
+      Object.values(md.days || {}).forEach(v => totalH += (v.hours || 0));
+      const [y, m] = k.split('-').map(Number);
+      const pill = document.createElement('div');
+      pill.className = 'month-pill';
+      pill.innerHTML = `${shortMonthName(y, m-1)} <span class="pill-hours">${fmtHours(totalH)}</span>`;
+      bar.appendChild(pill);
+    });
+  }
+
+  // ── Navigation ───────────────────────────────────────────────────────────
+  function navigateMonth(dir) {
+    viewMonth += dir;
+    if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    if (viewMonth < 0)  { viewMonth = 11; viewYear--; }
+    renderCalendar();
+  }
+
+  // ── Day Modal ────────────────────────────────────────────────────────────
+  function openDayModal(day, dayData) {
+    editingDay = day;
+    isDoneToggle = dayData.done || false;
+    document.getElementById('modal-day-num').textContent = day;
+    document.getElementById('hours-input').value = dayData.hours || 0;
+    document.getElementById('notes-input').value = dayData.notes || '';
+    updateToggleUI();
+    document.getElementById('day-modal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('day-modal').classList.remove('open');
+    editingDay = null;
+  }
+
+  function setToggle(val) { isDoneToggle = val; updateToggleUI(); }
+
+  function updateToggleUI() {
+    const dEl = document.getElementById('toggle-done');
+    const nEl = document.getElementById('toggle-not');
+    if (isDoneToggle) {
+      dEl.style.cssText = 'border-color:var(--green);background:rgba(57,255,133,0.1);color:var(--green);';
+      nEl.style.cssText = 'border-color:var(--border);background:;color:var(--text-dim);';
+    } else {
+      nEl.style.cssText = 'border-color:var(--bitch);background:rgba(255,71,87,0.1);color:var(--bitch);';
+      dEl.style.cssText = 'border-color:var(--border);background:;color:var(--text-dim);';
+    }
+  }
+
+  function stepHours(delta) {
+    const inp = document.getElementById('hours-input');
+    inp.value = Math.max(0, Math.min(24, (parseFloat(inp.value) || 0) + delta));
+  }
+
+  async function saveDay() {
+    if (editingDay === null) return;
+    const hours = parseFloat(document.getElementById('hours-input').value) || 0;
+    const notes = document.getElementById('notes-input').value.trim();
+
+    const md = getMonthData(viewYear, viewMonth);
+    if (!md.days) md.days = {};
+    md.days[editingDay] = { done: isDoneToggle, hours, notes };
+    closeModal();
+    render();
+    await persist();
+  }
+
+  // ── Reset ────────────────────────────────────────────────────────────────
+  let pendingReset = null;
+
+  function confirmReset(type) {
+    pendingReset = type;
+    document.getElementById('confirm-title').textContent = type === 'day' ? 'RESET TODAY' : 'RESET MONTH';
+    document.getElementById('confirm-msg').textContent = type === 'day'
+      ? "This will clear today's hours, status, and notes. Can't undo."
+      : "This will clear ALL data for the current month. Previous months stay. Can't undo.";
+    document.getElementById('confirm-modal').classList.add('open');
+    document.getElementById('confirm-yes').onclick = doReset;
+  }
+
+  function closeConfirm() {
+    document.getElementById('confirm-modal').classList.remove('open');
+    pendingReset = null;
+  }
+
+  async function doReset() {
+    const k = monthKey(today.getFullYear(), today.getMonth());
+    if (pendingReset === 'day') {
+      if (data.months[k] && data.months[k].days) {
+        delete data.months[k].days[today.getDate()];
+      }
+    } else {
+      data.months[k] = { days: {} };
+    }
+    closeConfirm();
+    viewYear = today.getFullYear();
+    viewMonth = today.getMonth();
+    render();
+    await persist();
+  }
+
+  // ── Close on overlay click / ESC ─────────────────────────────────────────
+  document.getElementById('day-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+  document.getElementById('confirm-modal').addEventListener('click', function(e) { if (e.target === this) closeConfirm(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeConfirm(); } });
+</script>
+</body>
+</html>
